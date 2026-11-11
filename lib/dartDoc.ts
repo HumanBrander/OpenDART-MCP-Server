@@ -1,8 +1,7 @@
 // dartDoc.ts — OpenDART 공시 원문(document.xml) 읽기 도구 3종
 // 기존 OpenDART MCP 서버(Vercel)의 lib/ 폴더에 넣고, MCP 라우트에서 registerDartDocTools(server, getKey)를 호출합니다.
-// 필요 패키지: npm i jszip iconv-lite zod
-import JSZip from "jszip";
-import iconv from "iconv-lite";
+// 추가 패키지 없음: 압축 해제는 이미 설치된 fflate, EUC-KR 해석은 Node 내장 TextDecoder 사용
+import { unzipSync } from "fflate";
 import { z } from "zod";
 
 const DART = "https://opendart.fss.or.kr/api";
@@ -24,14 +23,13 @@ async function loadDocument(rceptNo: string, apiKey: string): Promise<DocFile[]>
   if (buf[0] !== 0x50 || buf[1] !== 0x4b) {
     throw new Error(`OpenDART 오류 응답: ${buf.toString("utf8").slice(0, 300)}`);
   }
-  const zip = await JSZip.loadAsync(buf);
+  const entries = unzipSync(new Uint8Array(buf));
   const files: DocFile[] = [];
-  for (const name of Object.keys(zip.files)) {
+  for (const [name, data] of Object.entries(entries)) {
     if (!name.toLowerCase().endsWith(".xml")) continue;
-    const raw = await zip.files[name].async("nodebuffer");
-    const head = raw.subarray(0, 200).toString("latin1");
+    const head = Buffer.from(data.subarray(0, 200)).toString("latin1");
     const enc = (/encoding="([^"]+)"/i.exec(head)?.[1] ?? "utf-8").toLowerCase();
-    const xml = /euc|ks_c|cp949/.test(enc) ? iconv.decode(raw, "euc-kr") : raw.toString("utf8");
+    const xml = new TextDecoder(/euc|ks_c|cp949/.test(enc) ? "euc-kr" : "utf-8").decode(data);
     files.push({ name, ...xmlToText(xml) });
   }
   // 본문은 파일명이 가장 짧은 XML, 나머지는 감사·검토보고서 등 첨부
