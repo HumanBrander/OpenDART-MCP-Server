@@ -1,6 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { getRequestApiKey } from "@/lib/opendart/client";
+import { getRequestApiKey, resolveApiKey } from "@/lib/opendart/client";
+import { searchCompanies } from "@/lib/opendart/cache";
+import { registerDartDocTools } from "@/lib/dartDoc";
 import { registerCompanyTools } from "./company";
 import { registerFinancialTools } from "./financial";
 import { registerDisclosureTools } from "./disclosure";
@@ -70,4 +72,9 @@ export function registerAllTools(server: McpServer) {
   registerShareholdingTools(server);   // Shareholding disclosures
   registerMajorEventTools(server);     // Major corporate events
   registerSecuritiesRegTools(server);  // Securities registration statements
+  registerDartDocTools(                // 공시 원문 읽기(dart_find_reports·dart_doc_outline·dart_doc_read)
+    server,
+    () => resolveApiKey(),
+    async (q) => (await searchCompanies(q, undefined, 1))[0]?.corp_code ?? null,
+  );
 }
