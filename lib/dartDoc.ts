@@ -50,7 +50,8 @@ function decodeEntities(s: string) {
 }
 
 function xmlToText(xml: string): { text: string; sections: Section[] } {
-  let s = xml;
+  // 0) 원문에 섞인 <style>·<script> 블록(CSS 코드)은 본문이 아니므로 통째로 제거
+  let s = xml.replace(/<(style|script)\b[^>]*>[\s\S]*?<\/\1>/gi, "");
   // 1) 장 제목 표시: <SECTION-n> 바로 뒤의 <TITLE>은 n단계, 그 밖의 TITLE은 9단계
   s = s.replace(/<SECTION-(\d)[^>]*>\s*<TITLE[^>]*>([\s\S]*?)<\/TITLE>/g,
     (_, lv, t) => `\n${S1}${lv}${S2}${t.replace(/<[^>]+>/g, "")}${S3}\n`);
